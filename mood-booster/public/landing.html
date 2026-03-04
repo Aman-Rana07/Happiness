@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mood Booster - Track Your Daily Mood</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #29BFFF 0%, #26A8DB 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Nunito', sans-serif;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Dotted background pattern */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: radial-gradient(circle, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Floating emoji decorations */
+        .emoji {
+            position: absolute;
+            font-size: 3rem;
+            opacity: 0.7;
+            animation: float 3s ease-in-out infinite;
+            z-index: 1;
+        }
+
+        .emoji:nth-child(1) {
+            top: 10%;
+            left: 5%;
+            animation-delay: 0s;
+            font-size: 2.5rem;
+            transform: rotate(-15deg);
+        }
+
+        .emoji:nth-child(2) {
+            top: 70%;
+            right: 8%;
+            animation-delay: 1s;
+            font-size: 3.5rem;
+            transform: rotate(10deg);
+        }
+
+        .emoji:nth-child(3) {
+            top: 20%;
+            right: 10%;
+            animation-delay: 2s;
+            font-size: 2rem;
+            transform: rotate(-5deg);
+        }
+
+        .emoji:nth-child(4) {
+            bottom: 15%;
+            left: 10%;
+            animation-delay: 1.5s;
+            font-size: 3rem;
+            transform: rotate(20deg);
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0px) rotate(var(--rotation));
+            }
+
+            50% {
+                transform: translateY(-20px) rotate(var(--rotation));
+            }
+        }
+
+        .container {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 700px;
+            padding: 20px;
+        }
+
+        .hero-card {
+            background: white;
+            border-radius: 24px;
+            padding: 60px 40px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .color-wheel {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            animation: spin 8s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        h1 {
+            font-family: 'Fredoka One', sans-serif;
+            font-size: 3rem;
+            color: #1a1a1a;
+            margin-bottom: 15px;
+            line-height: 1.2;
+        }
+
+        .subheadline {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #FFD700 0%, #FF9800 100%);
+            color: white;
+            text-decoration: none;
+            padding: 18px 50px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(255, 152, 0, 0.3);
+            font-family: 'Nunito', sans-serif;
+        }
+
+        .cta-button:hover {
+            transform: scale(1.08);
+            box-shadow: 0 15px 40px rgba(255, 152, 0, 0.4);
+        }
+
+        .cta-button:active {
+            transform: scale(0.98);
+        }
+
+        .feature-chips {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 40px;
+            flex-wrap: wrap;
+        }
+
+        .chip {
+            background: #f0f0f0;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            color: #333;
+            font-weight: 600;
+            animation: slideUp 0.6s ease-out;
+            animation-fill-mode: both;
+        }
+
+        .chip:nth-child(1) {
+            animation-delay: 0.2s;
+        }
+
+        .chip:nth-child(2) {
+            animation-delay: 0.4s;
+        }
+
+        .chip:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+
+        @media (max-width: 600px) {
+            .hero-card {
+                padding: 40px 25px;
+            }
+
+            h1 {
+                font-size: 2.2rem;
+            }
+
+            .color-wheel {
+                font-size: 3rem;
+            }
+
+            .cta-button {
+                padding: 15px 40px;
+                font-size: 1.1rem;
+            }
+
+            .feature-chips {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .chip {
+                width: 100%;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="emoji">😄</div>
+    <div class="emoji">🌈</div>
+    <div class="emoji">✨</div>
+    <div class="emoji">💡</div>
+
+    <div class="container">
+        <div class="hero-card">
+            <div class="color-wheel">🎨</div>
+            <h1>What's Your Mood Today?</h1>
+            <p class="subheadline">Discover websites perfectly matched to how you're feeling right now.</p>
+
+            <a href="../" class="cta-button">Let's Start →</a>
+
+            <div class="feature-chips">
+                <div class="chip">😴 Tired</div>
+                <div class="chip">🔥 Excited</div>
+                <div class="chip">😌 Chill</div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
