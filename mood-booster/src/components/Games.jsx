@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import '../styles/Games.css';
 
+// --- GAME 1: Memory Game ---
 const MemoryGame = ({ onClose }) => {
   const [cards, setCards] = useState(
     shuffleArray([
@@ -53,6 +54,13 @@ const MemoryGame = ({ onClose }) => {
 
   const isComplete = matched.length === cards.length;
 
+  const resetGame = () => {
+     setMatched([]);
+     setFlipped([]);
+     setMoves(0);
+     setCards(shuffleArray([...cards]));
+  }
+
   return (
     <div className="game-modal">
       <div className="game-content">
@@ -76,7 +84,7 @@ const MemoryGame = ({ onClose }) => {
           ))}
         </div>
         {isComplete && (
-          <button onClick={() => window.location.reload()} className="restart-game-btn">
+          <button onClick={resetGame} className="restart-game-btn">
             Play Again
           </button>
         )}
@@ -85,87 +93,183 @@ const MemoryGame = ({ onClose }) => {
   );
 };
 
-const QuickClickGame = ({ onClose }) => {
-  const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [gameActive, setGameActive] = useState(false);
-  const [highScore, setHighScore] = useState(localStorage.getItem('quickClickHighScore') || 0);
+// --- GAME 2: Tic-Tac-Toe (Against the Bot) ---
+const TicTacToeGame = ({ onClose }) => {
+  const [board, setBoard] = useState(Array(9).fill(null));
+  const [isPlayerTurn, setIsPlayerTurn] = useState(true);
+  const [winner, setWinner] = useState(null); // '🌟', '🤖', 'Draw', or null
 
-  const startGame = () => {
-    setScore(0);
-    setTimeLeft(30);
-    setGameActive(true);
+  const checkWinner = (squares) => {
+    const lines = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+      [0, 3, 6], [1, 4, 7], [2, 5, 8], // cols
+      [0, 4, 8], [2, 4, 6]             // diagonals
+    ];
+    for (let i = 0; i < lines.length; i++) {
+      const [a, b, c] = lines[i];
+      if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
+        return squares[a];
+      }
+    }
+    if (!squares.includes(null)) return 'Draw';
+    return null;
   };
 
-  const handleClick = () => {
-    if (gameActive) {
-      setScore(score + 1);
+  const handleClick = (index) => {
+    // Prevent clicking if the spot is taken, game is over, or it's the bot's turn
+    if (board[index] || winner || !isPlayerTurn) return;
+
+    const newBoard = [...board];
+    newBoard[index] = '🌟'; // Player is the Star
+    setBoard(newBoard);
+
+    const currentWinner = checkWinner(newBoard);
+    if (currentWinner) {
+      setWinner(currentWinner);
+    } else {
+      setIsPlayerTurn(false); // Hand turn to bot
     }
   };
 
-  const endGame = () => {
-    setGameActive(false);
-    if (score > highScore) {
-      setHighScore(score);
-      localStorage.setItem('quickClickHighScore', score);
+  // Bot logic
+  useEffect(() => {
+    if (!isPlayerTurn && !winner) {
+      const timer = setTimeout(() => {
+        const emptyIndices = board
+          .map((val, idx) => (val === null ? idx : null))
+          .filter((val) => val !== null);
+          
+        if (emptyIndices.length > 0) {
+          const randomIdx = emptyIndices[Math.floor(Math.random() * emptyIndices.length)];
+          const newBoard = [...board];
+          newBoard[randomIdx] = '🤖'; // Bot is the Robot
+          setBoard(newBoard);
+          
+          const currentWinner = checkWinner(newBoard);
+          if (currentWinner) {
+            setWinner(currentWinner);
+          }
+        }
+        setIsPlayerTurn(true);
+      }, 600); // 0.6 second delay to feel like the bot is "thinking"
+      return () => clearTimeout(timer);
     }
-  };
+  }, [isPlayerTurn, board, winner]);
 
-  useState(() => {
-    if (!gameActive || timeLeft <= 0) return;
-    const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-    if (timeLeft === 1) {
-      endGame();
-    }
-    return () => clearTimeout(timer);
-  }, [timeLeft, gameActive]);
+  const resetGame = () => {
+    setBoard(Array(9).fill(null));
+    setWinner(null);
+    setIsPlayerTurn(true);
+  };
 
   return (
     <div className="game-modal">
       <div className="game-content">
         <div className="game-header">
-          <h3>⚡ Quick Click</h3>
+          <h3>⭕ Tic-Tac-Toe</h3>
           <button onClick={onClose} className="close-btn">✕</button>
         </div>
-        <div className="game-stats">
-          <p>Score: {score} | Time: {timeLeft}s</p>
-          <p>High Score: {highScore}</p>
+        
+        <div className="game-stats" style={{ textAlign: 'center', margin: '15px 0' }}>
+          <p style={{ fontWeight: 'bold', color: '#667eea' }}>
+            {winner === '🌟' ? 'You Won! 🎉' 
+              : winner === '🤖' ? 'Think Bot Wins! 🤖' 
+              : winner === 'Draw' ? "It's a Draw! 🤝" 
+              : isPlayerTurn ? 'Your Turn (🌟)' 
+              : 'Think Bot is thinking...'}
+          </p>
         </div>
-        {!gameActive ? (
-          <button onClick={startGame} className="start-game-btn">
-            Start Game
-          </button>
-        ) : (
-          <button onClick={handleClick} className="click-target">
-            CLICK ME!
-          </button>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: '10px',
+          maxWidth: '300px',
+          margin: '0 auto 20px auto'
+        }}>
+          {board.map((cell, index) => (
+            <button
+              key={index}
+              onClick={() => handleClick(index)}
+              style={{
+                height: '90px',
+                fontSize: '3rem',
+                backgroundColor: '#f7fafc',
+                border: '2px solid #e2e8f0',
+                borderRadius: '10px',
+                cursor: (cell || winner || !isPlayerTurn) ? 'default' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background-color 0.2s'
+              }}
+            >
+              {cell}
+            </button>
+          ))}
+        </div>
+
+        {winner && (
+          <div style={{ textAlign: 'center' }}>
+            <button onClick={resetGame} className="start-game-btn" style={{ padding: '10px 20px', background: '#667eea', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+              Play Again
+            </button>
+          </div>
         )}
       </div>
     </div>
   );
 };
 
+// --- GAME 3: Word Guess (Upgraded with Hints & Meanings) ---
 const WordGuessGame = ({ onClose }) => {
-  const words = ['happiness', 'mindfulness', 'gratitude', 'serenity', 'wellness', 'healing', 'peace'];
-  const [word] = useState(words[Math.floor(Math.random() * words.length)]);
+  const wordDictionary = [
+    { word: 'happiness', hint: 'A feeling of joy.', meaning: 'A state of well-being, contentment, and positive energy.' },
+    { word: 'mindfulness', hint: 'Being present in the moment.', meaning: 'Focusing one’s awareness on the present moment while calmly acknowledging feelings and thoughts.' },
+    { word: 'gratitude', hint: 'Saying thank you.', meaning: 'The quality of being thankful and showing appreciation for what you have.' },
+    { word: 'serenity', hint: 'Calm and peaceful.', meaning: 'The state of being calm, peaceful, and entirely untroubled.' },
+    { word: 'wellness', hint: 'Good health.', meaning: 'The state of being in good health, especially as an actively pursued goal.' },
+    { word: 'healing', hint: 'Getting better.', meaning: 'The process of making or becoming sound or healthy again, physically or mentally.' },
+    { word: 'peace', hint: 'No conflict.', meaning: 'Freedom from disturbance; a state of tranquility.' },
+    { word: 'harmony', hint: 'Working together nicely.', meaning: 'The quality of forming a pleasing and consistent whole.' },
+    { word: 'breathe', hint: 'Inhale and exhale.', meaning: 'To take air into the lungs and expel it; a grounding exercise to reduce stress.' },
+    { word: 'relax', hint: 'Take it easy.', meaning: 'To rest and allow tension to fade away from the mind and body.' },
+    { word: 'smile', hint: 'A happy face.', meaning: 'A pleased, kind, or amused facial expression that can instantly boost your mood.' },
+    { word: 'laugh', hint: 'A funny reaction.', meaning: 'A spontaneous sound expressing lively amusement or joy.' },
+    { word: 'optimism', hint: 'Looking on the bright side.', meaning: 'Hopefulness and confidence about the future or the successful outcome of something.' },
+    { word: 'resilient', hint: 'Bouncing back.', meaning: 'The ability to withstand or recover quickly from difficult conditions.' },
+    { word: 'journal', hint: 'Writing your thoughts.', meaning: 'A daily record of personal news and events, highly effective for processing emotions.' }
+  ];
+
+  const [currentWordObj, setCurrentWordObj] = useState(
+    wordDictionary[Math.floor(Math.random() * wordDictionary.length)]
+  );
+  
   const [guessed, setGuessed] = useState([]);
   const [wrong, setWrong] = useState(0);
-  const [gameOver, setGameOver] = useState(false);
+
+  const targetWord = currentWordObj.word;
+  const targetHint = currentWordObj.hint;
+  const targetMeaning = currentWordObj.meaning;
+
+  const won = targetWord.split('').every((l) => guessed.includes(l));
+  const lost = wrong >= 6;
 
   const handleGuess = (letter) => {
-    if (guessed.includes(letter)) return;
+    if (guessed.includes(letter) || won || lost) return;
+    
     setGuessed([...guessed, letter]);
 
-    if (!word.includes(letter)) {
+    if (!targetWord.includes(letter)) {
       setWrong(wrong + 1);
-      if (wrong >= 5) {
-        setGameOver(true);
-      }
     }
   };
 
-  const won = word.split('').every((l) => guessed.includes(l));
-  const lost = wrong >= 6;
+  const resetGame = () => {
+      setCurrentWordObj(wordDictionary[Math.floor(Math.random() * wordDictionary.length)]);
+      setGuessed([]);
+      setWrong(0);
+  }
 
   return (
     <div className="game-modal">
@@ -174,35 +278,75 @@ const WordGuessGame = ({ onClose }) => {
           <h3>🔤 Word Guess</h3>
           <button onClick={onClose} className="close-btn">✕</button>
         </div>
-        <div className="game-stats">
-          <p>Wrong: {wrong}/6</p>
+        
+        <div className="game-stats" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '10px 0' }}>
+          <p style={{ fontWeight: 'bold', color: '#e53e3e' }}>Wrong Guesses: {wrong}/6</p>
         </div>
-        <div className="word-display">
-          {word.split('').map((letter, i) => (
-            <span key={i} className="word-letter">
-              {guessed.includes(letter) ? letter : '_'}
+
+        <div style={{ background: '#f0f4f8', padding: '15px', borderRadius: '8px', margin: '15px 0', fontStyle: 'italic', color: '#4a5568' }}>
+          💡 <strong>Hint:</strong> {targetHint}
+        </div>
+        
+        <div className="word-display" style={{fontSize: "2rem", letterSpacing: "10px", textAlign: "center", margin: "20px 0"}}>
+          {targetWord.split('').map((letter, i) => (
+            <span key={i} className="word-letter" style={{ borderBottom: '3px solid #cbd5e0', paddingBottom: '5px' }}>
+              {guessed.includes(letter) || lost ? letter : '_'}
             </span>
           ))}
         </div>
-        <div className="alphabet">
-          {'abcdefghijklmnopqrstuvwxyz'.split('').map((letter) => (
-            <button
-              key={letter}
-              onClick={() => handleGuess(letter)}
-              disabled={guessed.includes(letter)}
-              className="letter-btn"
-            >
-              {letter}
-            </button>
-          ))}
+        
+        <div className="alphabet" style={{display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center"}}>
+          {'abcdefghijklmnopqrstuvwxyz'.split('').map((letter) => {
+            const isGuessed = guessed.includes(letter);
+            const isCorrect = isGuessed && targetWord.includes(letter);
+            const isWrong = isGuessed && !targetWord.includes(letter);
+            
+            return (
+              <button
+                key={letter}
+                onClick={() => handleGuess(letter)}
+                disabled={isGuessed || won || lost}
+                className="letter-btn"
+                style={{
+                  padding: "10px", 
+                  width: "40px", 
+                  borderRadius: '5px',
+                  border: '1px solid #e2e8f0',
+                  fontWeight: 'bold',
+                  cursor: isGuessed ? 'not-allowed' : 'pointer',
+                  backgroundColor: isCorrect ? '#48bb78' : isWrong ? '#f56565' : '#edf2f7',
+                  color: isGuessed ? 'white' : '#2d3748',
+                  opacity: isGuessed ? 0.8 : 1
+                }}
+              >
+                {letter}
+              </button>
+            )
+          })}
         </div>
-        {won && <p className="win-text">You Won! 🎉 The word was: {word}</p>}
-        {lost && <p className="lose-text">Game Over! 😢 The word was: {word}</p>}
+        
+        <div style={{textAlign: "center", marginTop: "20px"}}>
+            {won && <p className="win-text" style={{color: "green", fontWeight: "bold", fontSize: "1.2rem"}}>You Won! 🎉</p>}
+            {lost && <p className="lose-text" style={{color: "red", fontWeight: "bold", fontSize: "1.2rem"}}>Game Over! 😢 The word was: {targetWord}</p>}
+            
+            {(won || lost) && (
+              <div style={{ marginTop: '20px', padding: '15px', background: '#e6fffa', borderRadius: '8px', border: '1px solid #319795', color: '#234e52', textAlign: 'left' }}>
+                <strong>📖 Meaning:</strong> {targetMeaning}
+              </div>
+            )}
+
+            {(won || lost) && (
+              <button onClick={resetGame} className="start-game-btn" style={{ marginTop: '20px', padding: '10px 20px', background: '#667eea', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                Play Again
+              </button>
+            )}
+        </div>
       </div>
     </div>
   );
 };
 
+// --- MAIN COMPONENT ---
 export const Games = () => {
   const [activeGame, setActiveGame] = useState(null);
 
@@ -218,10 +362,10 @@ export const Games = () => {
           <p>Test your memory by matching emoji pairs</p>
         </div>
 
-        <div className="game-card" onClick={() => setActiveGame('quickclick')}>
-          <div className="game-icon">⚡</div>
-          <h3>Quick Click</h3>
-          <p>Click as many times as you can in 30 seconds</p>
+        <div className="game-card" onClick={() => setActiveGame('tictactoe')}>
+          <div className="game-icon">⭕</div>
+          <h3>Tic-Tac-Toe</h3>
+          <p>Play a classic, relaxing game against Think</p>
         </div>
 
         <div className="game-card" onClick={() => setActiveGame('wordguess')}>
@@ -232,7 +376,7 @@ export const Games = () => {
       </div>
 
       {activeGame === 'memory' && <MemoryGame onClose={() => setActiveGame(null)} />}
-      {activeGame === 'quickclick' && <QuickClickGame onClose={() => setActiveGame(null)} />}
+      {activeGame === 'tictactoe' && <TicTacToeGame onClose={() => setActiveGame(null)} />}
       {activeGame === 'wordguess' && <WordGuessGame onClose={() => setActiveGame(null)} />}
     </div>
   );

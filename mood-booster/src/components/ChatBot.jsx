@@ -1,13 +1,23 @@
-import { useState, useContext } from 'react';
+import { useState, useContext, useRef, useEffect } from 'react';
 import { UserContext } from '../context/UserContext';
 import '../styles/ChatBot.css';
 
+const SYSTEM_PROMPT = `You are "Think", the Mood Fixer AI. 
+Your core persona is friendly, empathetic, and uplifting. 
+Your rules:
+1. Identify the user's mood and match their energy (gentle if sad, energetic if bored).
+2. Limit website suggestions. Instead of just giving links, provide interactive "fixes": offer to play a quick word puzzle game, share a light logic riddle, guide them through a breathing exercise, or tell a joke.
+3. Keep responses concise and punchy (1-3 short paragraphs max). Focus on conversation over lecturing.
+4. SAFETY CRITICAL: If a user expresses severe distress, depression, or self-harm, drop the playful tone, express genuine concern, and advise them to seek professional help or talk to a trusted person.
+5. Never break character.`;
+
 export const ChatBot = () => {
   const { user } = useContext(UserContext);
+  
   const [messages, setMessages] = useState([
     {
       id: 1,
-      text: `Hello ${user?.username || 'Friend'}! 👋 I'm here to listen and support you. How are you feeling today?`,
+      text: `Hello ${user?.username || 'Friend'}! 👋 I'm "Think", your AI Mood Fixer. How are you feeling today?`,
       sender: 'bot',
       timestamp: new Date(),
     },
@@ -15,110 +25,95 @@ export const ChatBot = () => {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const botResponses = {
-    stress: [
-      'I hear you. Stress can be overwhelming. Try taking deep breaths or a short walk. 🌿',
-      'Remember, this too shall pass. Consider what you can control right now. 💪',
-      'Would a break help? Sometimes stepping away refreshes your mind.',
-      'Stress is a sign you care. Channel that energy into action or relaxation.',
-    ],
-    happy: [
-      'That\'s wonderful! Keep spreading that joy! ✨',
-      'I love your positive energy! Make this feeling last by savoring it. 🌟',
-      'You deserve to feel this good. Keep it up!',
-      'Happiness looks great on you! Share it with others! 💖',
-    ],
-    sad: [
-      'It\'s okay to feel sad sometimes. Your feelings are valid. 💙',
-      'Would talking about what\'s bothering you help? I\'m here to listen.',
-      'Remember, pain is temporary. Brighter days are coming. 🌈',
-      'You\'re stronger than you think. How can I support you?',
-    ],
-    sleep: [
-      'Good sleep is crucial for mental health. Consider a bedtime routine. 😴',
-      'Try to avoid screens before bed and keep your room cool and dark. 🛏️',
-      'Would a meditation or relaxation audio help you sleep?',
-    ],
-    exercise: [
-      'Movement is medicine! Even a 10-minute walk can boost your mood. 🏃',
-      'Physical activity releases endorphins - nature\'s happy chemicals! 📈',
-      'Try yoga or stretching. Your body and mind will thank you! 🧘',
-    ],
-    friend: [
-      'Connecting with loved ones is so important. Reach out to them! 🤝',
-      'Social connection is vital for happiness. Consider calling someone today. 📞',
-      'Spending time with supportive people helps us feel better. 💕',
-    ],
-    grateful: [
-      'Gratitude is a superpower! You\'re on the right track. 🙏',
-      'That\'s beautiful. Focusing on what we have brings more joy. ✨',
-      'Gratitude can transform your perspective. Keep cultivating it! 🌻',
-    ],
-    default: [
-      'I appreciate you sharing that with me. How does it make you feel? 🤔',
-      'That\'s interesting. Tell me more about it.',
-      'I\'m listening. What else is on your mind?',
-      'Thank you for opening up. Your feelings matter. 💚',
-      'I see. Remember, you\'re not alone in this.',
-    ],
+  // --- UI POLISH: Auto-Scroll Logic ---
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const getKeywords = (text) => {
-    const lower = text.toLowerCase();
-    if (lower.includes('stress') || lower.includes('anxious') || lower.includes('worry'))
-      return 'stress';
-    if (
-      lower.includes('happy') ||
-      lower.includes('great') ||
-      lower.includes('excited') ||
-      lower.includes('wonderful')
-    )
-      return 'happy';
-    if (lower.includes('sad') || lower.includes('depressed') || lower.includes('hurt'))
-      return 'sad';
-    if (lower.includes('sleep') || lower.includes('tired') || lower.includes('exhausted'))
-      return 'sleep';
-    if (lower.includes('exercise') || lower.includes('run') || lower.includes('walk'))
-      return 'exercise';
-    if (lower.includes('friend') || lower.includes('family') || lower.includes('love'))
-      return 'friend';
-    if (lower.includes('grateful') || lower.includes('grateful') || lower.includes('thankful'))
-      return 'grateful';
-    return 'default';
-  };
+  // Triggers the scroll every time 'messages' or 'isLoading' changes
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isLoading]);
 
-  const generateBotResponse = (userMessage) => {
-    const category = getKeywords(userMessage);
-    const responses = botResponses[category];
-    return responses[Math.floor(Math.random() * responses.length)];
-  };
+  // --- AI API LOGIC ---
+  const handleSendMessage = async (e, customInput = null) => {
+    if (e) e.preventDefault();
+    
+    const textToSend = customInput || input;
+    if (!textToSend.trim()) return;
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!input.trim()) return;
-
+    // 1. Add User's new message to the screen
     const userMessage = {
-      id: messages.length + 1,
-      text: input,
+      id: Date.now(),
+      text: textToSend,
       sender: 'user',
       timestamp: new Date(),
     };
 
-    setMessages([...messages, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
 
-    // Simulate bot thinking delay
-    setTimeout(() => {
+    try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY; 
+      
+      if (!apiKey) {
+        throw new Error("API Key is missing! Check your .env file.");
+      }
+
+      // 2. Format the chat history so the AI remembers the conversation
+      const chatHistory = messages.map((msg) => ({
+        role: msg.sender === 'bot' ? 'model' : 'user',
+        parts: [{ text: msg.text }]
+      }));
+      
+      // Add the current message to the history
+      chatHistory.push({ role: 'user', parts: [{ text: textToSend }] });
+
+      // 3. Make the API Call
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+           systemInstruction: {
+             parts: [{ text: SYSTEM_PROMPT }]
+           },
+           contents: chatHistory // We now send the entire chat history!
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.error) {
+        throw new Error(data.error.message);
+      }
+
+      const aiResponseText = data.candidates[0].content.parts[0].text;
+
+      // 4. Add the AI's response to the screen
       const botMessage = {
-        id: messages.length + 2,
-        text: generateBotResponse(input),
+        id: Date.now() + 1,
+        text: aiResponseText,
         sender: 'bot',
         timestamp: new Date(),
       };
+      
       setMessages((prev) => [...prev, botMessage]);
+
+    } catch (error) {
+      console.error("AI API Error:", error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        text: "Oops! My brain got a little scrambled. Could you try saying that again? 😅",
+        sender: 'bot',
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
   };
 
   return (
@@ -148,60 +143,30 @@ export const ChatBot = () => {
             </div>
           </div>
         ))}
+        
         {isLoading && (
           <div className="message bot-message">
             <div className="message-content typing">
-              <span></span>
-              <span></span>
-              <span></span>
+              <span></span><span></span><span></span>
             </div>
           </div>
         )}
+        
+        {/* --- UI POLISH: The Invisible Auto-Scroll Anchor --- */}
+        <div ref={messagesEndRef} />
       </div>
 
       <div className="suggested-prompts">
-        <button
-          onClick={() => {
-            setInput('I am feeling stressed');
-            setTimeout(() => {
-              handleSendMessage({ preventDefault: () => {} });
-            }, 100);
-          }}
-          className="prompt-btn"
-        >
+        <button onClick={() => handleSendMessage(null, 'I am feeling stressed')} className="prompt-btn">
           😤 Stressed
         </button>
-        <button
-          onClick={() => {
-            setInput('I am feeling happy');
-            setTimeout(() => {
-              handleSendMessage({ preventDefault: () => {} });
-            }, 100);
-          }}
-          className="prompt-btn"
-        >
+        <button onClick={() => handleSendMessage(null, 'I am feeling happy')} className="prompt-btn">
           😊 Happy
         </button>
-        <button
-          onClick={() => {
-            setInput('I need motivation');
-            setTimeout(() => {
-              handleSendMessage({ preventDefault: () => {} });
-            }, 100);
-          }}
-          className="prompt-btn"
-        >
+        <button onClick={() => handleSendMessage(null, 'I need motivation')} className="prompt-btn">
           💪 Motivation
         </button>
-        <button
-          onClick={() => {
-            setInput('I cannot sleep');
-            setTimeout(() => {
-              handleSendMessage({ preventDefault: () => {} });
-            }, 100);
-          }}
-          className="prompt-btn"
-        >
+        <button onClick={() => handleSendMessage(null, 'I cannot sleep')} className="prompt-btn">
           😴 Sleep Help
         </button>
       </div>
